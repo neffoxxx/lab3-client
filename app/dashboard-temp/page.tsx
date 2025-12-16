@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   LineChart,
   Line,
@@ -21,7 +21,20 @@ interface Reading {
   alertMessage?: string | null;
 }
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+interface ApiReading {
+  timestamp: string;
+  value: number;
+  unit: string;
+  sensorName: string;
+}
+
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: { payload: Reading }[];
+  label?: string;
+}
+
+const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
   if (active && payload && payload.length) {
     const data = payload[0].payload;
     return (
@@ -45,6 +58,7 @@ export default function DashboardTempPage() {
   const [readings, setReadings] = useState<Reading[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const isFirstLoad = useRef(true);
 
   const apiUrlRaw = process.env.NEXT_PUBLIC_API_URL;
   // Remove trailing slash if present to avoid double-slash in requests
@@ -58,7 +72,7 @@ export default function DashboardTempPage() {
     }
 
     async function fetchData() {
-      if (readings.length === 0) setLoading(true);
+      if (isFirstLoad.current) setLoading(true);
       setError(null);
       try {
         const res = await fetch(`${apiUrl}/sensors`);
@@ -69,7 +83,7 @@ export default function DashboardTempPage() {
           throw new Error("API повернув невірний формат даних");
         }
 
-        const formatted = data.map((item: any) => {
+        const formatted = data.map((item: ApiReading) => {
           const isCritical = item.value < 12 || item.value > 55;
           return {
             time: new Date(item.timestamp).toLocaleTimeString("uk-UA", {
@@ -95,6 +109,7 @@ export default function DashboardTempPage() {
         console.error("Fetching data error:", err);
       } finally {
         setLoading(false);
+        isFirstLoad.current = false;
       }
     }
 
